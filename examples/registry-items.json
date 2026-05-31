@@ -1,0 +1,19 @@
+{
+  "items": [
+    {
+      "name": "github-mcp",
+      "url": "https://github.com/example/github-mcp",
+      "transport": "stdio",
+      "auth": "token",
+      "description": "Read and write GitHub issues, pull requests, and repository files over HTTP.",
+      "tags": ["github", "issues", "pull-requests"]
+    },
+    {
+      "name": "memory-mcp",
+      "transport": "stdio",
+      "auth": "none",
+      "description": "Local memory and search tools for coding agents.",
+      "tags": ["memory", "search"]
+    }
+  ]
+}

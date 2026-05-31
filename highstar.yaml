@@ -1,12 +1,12 @@
 name: mcp-server-radar
-one_liner: Scan MCP server manifests into a searchable capability index.
+one_liner: Scan MCP server lists into capability and risk indexes.
 target_user: MCP and agent developers
-pain_point: MCP server lists are hard to compare by capability, transport, and risk.
-demo_command: PYTHONPATH=src python3 -m mcp_server_radar examples/servers.json
-tier: baseline
-maturity_status: hardened-2026-05-31
-next_release: v0.1.1
-polish_score: 82
+pain_point: MCP server lists are hard to compare by capability, transport, auth, and risk.
+demo_command: PYTHONPATH=src python3 -m mcp_server_radar examples/registry-items.json --format markdown
+tier: flagship
+maturity_status: trend-aligned-2026-05-31
+next_release: v0.2.0
+polish_score: 93
 topics:
   - ai-tools
   - mcp
@@ -18,9 +18,9 @@ release_channel:
   - github
   - relevant-developer-communities
 launch_copy:
-  - I built mcp-server-radar: Scan MCP server manifests into a searchable capability index.
-  - The pain: MCP server lists are hard to compare by capability, transport, and risk.
-  - Try it with: PYTHONPATH=src python3 -m mcp_server_radar examples/servers.json
+  - I built mcp-server-radar to scan MCP server lists into capability and risk indexes.
+  - It compares transport, auth, capability tags, inferred risk, and Markdown/JSON output before you install a server.
+  - Try it with: PYTHONPATH=src python3 -m mcp_server_radar examples/registry-items.json --format markdown
 quality_gate:
   commands:
     - python3 -m unittest discover -s tests

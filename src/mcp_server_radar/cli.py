@@ -14,14 +14,61 @@ RISK_CATEGORIES = {
     "admin": ["admin", "root", "sudo"],
     "delete": ["delete", "remove", "destroy"],
     "network": ["network", "http", "web"],
+    "secret": ["secret", "token", "api key", "apikey", "credential"],
 }
 
 
 def load_servers(path: str) -> List[Dict[str, Any]]:
     payload = json.loads(Path(path).read_text(encoding="utf-8"))
     if isinstance(payload, dict):
-        payload = payload.get("servers", [payload])
+        for key in ("servers", "items", "repositories", "mcpServers"):
+            if isinstance(payload.get(key), list):
+                payload = payload[key]
+                break
+        else:
+            payload = [payload]
     return [item for item in payload if isinstance(item, dict)]
+
+
+def listify(value: Any) -> List[str]:
+    if value is None:
+        return []
+    if isinstance(value, dict):
+        return [str(key) for key in value]
+    if isinstance(value, list):
+        return [str(item) for item in value]
+    return [str(value)]
+
+
+def infer_capabilities(server: Dict[str, Any]) -> List[str]:
+    capabilities: List[str] = []
+    for key in ("capabilities", "tools", "tags", "categories", "keywords"):
+        capabilities.extend(listify(server.get(key)))
+    description = str(server.get("description") or "").lower()
+    for term in ("filesystem", "github", "database", "browser", "memory", "search", "slack"):
+        if term in description:
+            capabilities.append(term)
+    return sorted(set(capabilities))
+
+
+def infer_risk_categories(server: Dict[str, Any], capabilities: Sequence[str]) -> List[str]:
+    haystack = " ".join(
+        str(item).lower()
+        for item in (
+            listify(server.get("scopes"))
+            + listify(server.get("permissions"))
+            + listify(server.get("auth"))
+            + listify(server.get("authentication"))
+            + listify(server.get("description"))
+            + listify(server.get("url"))
+            + list(capabilities)
+        )
+    )
+    risk_categories = []
+    for category, terms in RISK_CATEGORIES.items():
+        if any(term in haystack for term in terms):
+            risk_categories.append(category)
+    return sorted(set(risk_categories))
 
 
 def index_servers(path: str) -> Dict[str, Any]:
@@ -30,18 +77,11 @@ def index_servers(path: str) -> Dict[str, Any]:
     server_rows = []
     risky = []
     for server in servers:
-        name = str(server.get("name") or server.get("id") or "unknown")
-        capabilities = server.get("capabilities") or server.get("tools") or []
-        if isinstance(capabilities, dict):
-            capabilities = list(capabilities)
-        capabilities = [str(capability) for capability in capabilities]
+        name = str(server.get("name") or server.get("id") or server.get("repo") or server.get("full_name") or "unknown")
+        capabilities = infer_capabilities(server)
         for capability in capabilities:
             capability_index.setdefault(capability, []).append(name)
-        scopes = " ".join(str(item).lower() for item in server.get("scopes", []))
-        risk_categories = []
-        for category, terms in RISK_CATEGORIES.items():
-            if any(term in scopes for term in terms):
-                risk_categories.append(category)
+        risk_categories = infer_risk_categories(server, capabilities)
         if risk_categories:
             risky.append(name)
         server_rows.append(
@@ -49,8 +89,10 @@ def index_servers(path: str) -> Dict[str, Any]:
                 "name": name,
                 "transport": str(server.get("transport") or server.get("protocol") or "unknown"),
                 "auth": str(server.get("auth") or server.get("authentication") or "unknown"),
+                "url": str(server.get("url") or server.get("repo_url") or server.get("html_url") or ""),
                 "capabilities": sorted(capabilities),
                 "risk_categories": sorted(set(risk_categories)),
+                "risk_score": len(set(risk_categories)),
             }
         )
     return {
@@ -76,17 +118,18 @@ def format_markdown(index: Dict[str, Any]) -> str:
         "",
         f"Servers: {index['server_count']}",
         "",
-        "| Server | Transport | Auth | Capabilities | Risk |",
-        "| --- | --- | --- | --- | --- |",
+        "| Server | Transport | Auth | Capabilities | Risk | Score |",
+        "| --- | --- | --- | --- | --- | ---: |",
     ]
     for server in index["servers"]:
         lines.append(
-            "| {name} | {transport} | {auth} | {capabilities} | {risk} |".format(
+            "| {name} | {transport} | {auth} | {capabilities} | {risk} | {score} |".format(
                 name=server["name"],
                 transport=server["transport"],
                 auth=server["auth"],
                 capabilities=", ".join(server["capabilities"]) or "-",
                 risk=", ".join(server["risk_categories"]) or "none",
+                score=server["risk_score"],
             )
         )
     return "\n".join(lines)

@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcp-server-radar"
-version = "0.1.1"
-description = "Scan MCP server manifests into a searchable capability index."
+version = "0.2.0"
+description = "Scan MCP server lists into capability and risk indexes."
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
