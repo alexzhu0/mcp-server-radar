@@ -3,6 +3,10 @@ one_liner: Scan MCP server manifests into a searchable capability index.
 target_user: MCP and agent developers
 pain_point: MCP server lists are hard to compare by capability, transport, and risk.
 demo_command: PYTHONPATH=src python3 -m mcp_server_radar examples/servers.json
+tier: baseline
+maturity_status: hardened-2026-05-31
+next_release: v0.1.1
+polish_score: 82
 topics:
   - ai-tools
   - mcp

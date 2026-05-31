@@ -8,6 +8,15 @@ from pathlib import Path
 from typing import Any, Dict, List, Sequence
 
 
+RISK_CATEGORIES = {
+    "filesystem": ["filesystem", "file", "path"],
+    "write": ["write", "create", "update"],
+    "admin": ["admin", "root", "sudo"],
+    "delete": ["delete", "remove", "destroy"],
+    "network": ["network", "http", "web"],
+}
+
+
 def load_servers(path: str) -> List[Dict[str, Any]]:
     payload = json.loads(Path(path).read_text(encoding="utf-8"))
     if isinstance(payload, dict):
@@ -18,18 +27,38 @@ def load_servers(path: str) -> List[Dict[str, Any]]:
 def index_servers(path: str) -> Dict[str, Any]:
     servers = load_servers(path)
     capability_index: Dict[str, List[str]] = {}
+    server_rows = []
     risky = []
     for server in servers:
         name = str(server.get("name") or server.get("id") or "unknown")
         capabilities = server.get("capabilities") or server.get("tools") or []
         if isinstance(capabilities, dict):
             capabilities = list(capabilities)
+        capabilities = [str(capability) for capability in capabilities]
         for capability in capabilities:
-            capability_index.setdefault(str(capability), []).append(name)
+            capability_index.setdefault(capability, []).append(name)
         scopes = " ".join(str(item).lower() for item in server.get("scopes", []))
-        if any(term in scopes for term in ["write", "admin", "delete", "filesystem"]):
+        risk_categories = []
+        for category, terms in RISK_CATEGORIES.items():
+            if any(term in scopes for term in terms):
+                risk_categories.append(category)
+        if risk_categories:
             risky.append(name)
-    return {"server_count": len(servers), "capabilities": capability_index, "risk_review": sorted(set(risky))}
+        server_rows.append(
+            {
+                "name": name,
+                "transport": str(server.get("transport") or server.get("protocol") or "unknown"),
+                "auth": str(server.get("auth") or server.get("authentication") or "unknown"),
+                "capabilities": sorted(capabilities),
+                "risk_categories": sorted(set(risk_categories)),
+            }
+        )
+    return {
+        "server_count": len(servers),
+        "servers": server_rows,
+        "capabilities": capability_index,
+        "risk_review": sorted(set(risky)),
+    }
 
 
 def format_text(index: Dict[str, Any]) -> str:
@@ -41,17 +70,41 @@ def format_text(index: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def format_markdown(index: Dict[str, Any]) -> str:
+    lines = [
+        "# MCP Server Radar",
+        "",
+        f"Servers: {index['server_count']}",
+        "",
+        "| Server | Transport | Auth | Capabilities | Risk |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    for server in index["servers"]:
+        lines.append(
+            "| {name} | {transport} | {auth} | {capabilities} | {risk} |".format(
+                name=server["name"],
+                transport=server["transport"],
+                auth=server["auth"],
+                capabilities=", ".join(server["capabilities"]) or "-",
+                risk=", ".join(server["risk_categories"]) or "none",
+            )
+        )
+    return "\n".join(lines)
+
+
 def run(input_path: str, output_format: str = "text") -> str:
     index = index_servers(input_path)
     if output_format == "json":
         return json.dumps(index, indent=2, sort_keys=True)
+    if output_format == "markdown":
+        return format_markdown(index)
     return format_text(index)
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Scan MCP server manifests into a capability index.")
     parser.add_argument("input", help="JSON file with servers")
-    parser.add_argument("--format", choices=["text", "json"], default="text")
+    parser.add_argument("--format", choices=["text", "json", "markdown"], default="text")
     return parser
 
 
