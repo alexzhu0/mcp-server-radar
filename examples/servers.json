@@ -1,0 +1,7 @@
+{
+  "servers": [
+    {"name": "github-mcp", "capabilities": ["issues", "pull-requests", "repo-search"], "scopes": ["repo-read"]},
+    {"name": "filesystem-mcp", "capabilities": ["read-file", "write-file"], "scopes": ["filesystem-write"]},
+    {"name": "browser-mcp", "tools": ["screenshot", "click", "extract-text"], "scopes": ["web-read"]}
+  ]
+}
